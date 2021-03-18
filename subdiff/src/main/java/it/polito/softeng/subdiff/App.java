@@ -1,15 +1,11 @@
 package it.polito.softeng.subdiff;
 
 import com.github.difflib.DiffUtils;
-import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.AbstractDelta;
-import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
-import com.github.difflib.patch.PatchFailedException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Value;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -70,6 +66,8 @@ public class App {
         for(Pair pair : javaFiles){
             diff(new File(reportPath), pair.source, pair.target);
         }
+
+        System.out.println("subdiff success");
 
     }
 
