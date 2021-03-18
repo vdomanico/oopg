@@ -63,9 +63,21 @@ public class App {
             }
         }
 
+        File indexFile = new File(reportPath + "\\" + "index.html");
+        List<File> diffFiles = new ArrayList<>();
         for(Pair pair : javaFiles){
-            diff(new File(reportPath), pair.source, pair.target);
+            File diffFile = diff(new File(reportPath), pair.source, pair.target);
+            diffFiles.add(diffFile);
         }
+
+        String header = "<!DOCTYPE html>\n" + "<html>\n" + "<body>\n" + "\n\n" + "<h1>" + "REPORT" + "</h1>" + "\n";
+        StringBuilder sourceStringBuilder = new StringBuilder(header);
+        for (File f : diffFiles){
+            sourceStringBuilder.append("<p><a href=\"").append(f.getAbsolutePath()).append("\">")
+                    .append(f.getName())
+                    .append("</a></p>\n");
+        }
+        Files.write(indexFile.toPath(), sourceStringBuilder.toString().getBytes());
 
         System.out.println("subdiff success");
 
@@ -78,7 +90,7 @@ public class App {
         public String color;
     }
 
-    public static void diff(File reportDir,
+    public static File diff(File reportDir,
                             File sourceFile,
                             File targetFile) throws IOException {
 
@@ -134,6 +146,7 @@ public class App {
 
         File global = new File(reportDir + "\\" + sourceName + "_" + targetName + ".html");
         Files.write(global.toPath(), sb.toString().getBytes());
+        return global;
 
     }
 
