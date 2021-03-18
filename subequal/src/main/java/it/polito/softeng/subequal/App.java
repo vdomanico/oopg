@@ -1,7 +1,8 @@
-package it.polito.softeng.subdiff;
+package it.polito.softeng.subequal;
 
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
+import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -66,7 +68,7 @@ public class App {
         File indexFile = new File(reportPath + "\\" + "index.html");
         List<File> diffFiles = new ArrayList<>();
         for(Pair pair : javaFiles){
-            File diffFile = diff(new File(reportPath), pair.source, pair.target);
+            File diffFile = eq(new File(reportPath), pair.source, pair.target);
             diffFiles.add(diffFile);
         }
 
@@ -79,7 +81,7 @@ public class App {
         }
         Files.write(indexFile.toPath(), sourceStringBuilder.toString().getBytes());
 
-        System.out.println("subdiff success");
+        System.out.println("subequal success");
 
     }
 
@@ -90,18 +92,19 @@ public class App {
         public String color;
     }
 
-    public static File diff(File reportDir,
+    public static File eq(File reportDir,
                             File sourceFile,
                             File targetFile) throws IOException {
 
         List<String> original = Files.readAllLines(sourceFile.toPath());
         List<String> revised = Files.readAllLines(targetFile.toPath());
-        List<String> origTrimmed = original.stream().map(s -> s.replaceAll("\\s","")).collect(Collectors.toList());
-        List<String> revisedTrimmed = revised.stream().map(s -> s.replaceAll("\\s","")).collect(Collectors.toList());
-        Patch<String> patch = DiffUtils.diff(origTrimmed, revisedTrimmed);
+        List<String> origTrimmed = original.stream().map(s -> s.replaceAll("\\s","").toLowerCase()).collect(Collectors.toList());
+        List<String> revisedTrimmed = revised.stream().map(s -> s.replaceAll("\\s","").toLowerCase()).collect(Collectors.toList());
+        Patch<String> patch = DiffUtils.diff(origTrimmed, revisedTrimmed, true);
         List<Line> sourceLines = original.stream().map(s -> new Line(s, "white")).collect(Collectors.toList());
         List<Line> targetLines = revised.stream().map(s -> new Line(s, "white")).collect(Collectors.toList());
 
+        int c = 0;
         for (AbstractDelta<String> delta : patch.getDeltas()) {
 
             int positionSource = delta.getSource().getPosition();
@@ -109,20 +112,62 @@ public class App {
             int positionTarget = delta.getTarget().getPosition();
             int sizeTarget = delta.getTarget().size();
 
-            for(int i = 0; i < sizeSource; i++){
-                Line line = sourceLines.get(i + positionSource);
-                line.setColor(getColor(delta, true));
+
+            if(delta.getType().equals(DeltaType.EQUAL)){
+                String color = getColor(c); c++;
+                for(int i = 0; i < sizeSource; i++){
+                    Line line = sourceLines.get(i + positionSource);
+                    line.setColor(color);
+                }
+                for(int i = 0; i < sizeTarget; i++){
+                    Line line = targetLines.get(i + positionTarget);
+                    line.setColor(color);
+                }
+            }
+            else if(delta.getType().equals(DeltaType.DELETE)){
+
+                String color = "red";
+                List<Line> block = new ArrayList<>();
+                for(int i = 0; i < sizeSource; i++){
+                    Line line = sourceLines.get(i + positionSource);
+                    block.add(line);
+                }
+
+                if(sizeTarget > 0){
+                    for(int i = 0; i < sizeTarget; i++){
+                        Line line = targetLines.get(i + positionTarget);
+                        line.setColor(color);
+                    }
+                }
+                else {
+                    int match = -1;
+                    Line first = block.get(0);
+                    String fLine = first.getLine().replaceAll("\\s","").toLowerCase();
+                    for(int m = 0; m < targetLines.size(); m++){
+                        Line line = targetLines.get(m);
+                        if("white".equals(line.getColor())){
+                            String tLine = line.getLine().replaceAll("\\s","").toLowerCase();
+                            if(tLine.equals(fLine)){
+                                match = m;
+                                break;
+                            }
+                        }
+                    }
+                    if(match > -1){
+                        for(int m = match, i = 0; i < block.size() && m < targetLines.size(); m++, i++){
+                            Line targetLine = targetLines.get(m);
+                            Line sourceLine = block.get(i);
+                            String tLine = targetLine.getLine().replaceAll("\\s","").toLowerCase();
+                            String bLine = sourceLine.getLine().replaceAll("\\s","").toLowerCase();
+                            if(tLine.equals(bLine)){
+                                sourceLine.setColor(color);
+                                targetLine.setColor(color);
+                            }
+                        }
+                    }
+                }
             }
 
-            for(int i = 0; i < sizeTarget; i++){
-                Line line = targetLines.get(i + positionTarget);
-                line.setColor(getColor(delta, false));
-            }
-
-            /*System.out.println(
-                    ++positionSource  + "[" + sizeSource + "]"
-                            + " - " + color + " - "
-                            + ++positionTarget + "[" + sizeTarget + "]");*/
         }
 
         String sourceName = sourceFile.getParentFile().getParentFile().getName() + "-" + FilenameUtils.getBaseName(sourceFile.getName());
@@ -167,13 +212,12 @@ public class App {
         Files.write(path, sourceStringBuilder.toString().getBytes());
     }
 
-    private static String getColor(AbstractDelta<String> delta, boolean src) {
-        return switch (delta.getType()){
-            case CHANGE -> "yellow";
-            case DELETE -> src ? "red" : "green";
-            case INSERT -> src ? "green" : "red";
-            case EQUAL -> "pink";
-        };
+    public static List<String> colors = Arrays.asList(
+            "yellow", "pink", "gray",
+            "cyan",
+            "darkGray", "magenta",
+            "orange", "blue", "lightGray");
+    private static String getColor(int c) {
+        return colors.get(c % 9);
     }
-
 }

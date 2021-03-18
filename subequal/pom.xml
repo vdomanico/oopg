@@ -10,7 +10,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>subdiff</artifactId>
+    <artifactId>subequal</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <build>
@@ -38,5 +38,6 @@
             </plugin>
         </plugins>
     </build>
+
 
 </project>
